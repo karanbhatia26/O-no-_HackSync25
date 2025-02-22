@@ -1,49 +1,34 @@
-import React from "react";
-import "../styles.css";
+import React from 'react';
 
-const FloodMap = () => {
+function FloodMap() {
   return (
-    <main className="flood-map">
-      {/* Map Section */}
-      <section className="map-section">
-        <h3>Interactive Map</h3>
-        <div className="map-container">
-          {/* Placeholder for Interactive Map (Use Leaflet.js or Google Maps API) */}
-          <p>Interactive Map</p>
+    <div className="flood-map-content">
+      <div className="map-container">
+        <div className="interactive-map">
+          Interactive Map
         </div>
-        {/* Risk Level Legend */}
-        <div className="legend">
-          <p>Risk Levels:</p>
-          <div className="legend-item"><span className="safe"></span> Safe</div>
-          <div className="legend-item"><span className="moderate"></span> Moderate</div>
-          <div className="legend-item"><span className="high-risk"></span> High Risk</div>
+        <div className="risk-levels">
+          <h3>Risk Levels</h3>
+          <div className="level safe">Safe</div>
+          <div className="level moderate">Moderate</div>
+          <div className="level high">High Risk</div>
         </div>
-      </section>
-
-      {/* Data Insights */}
-      <aside className="data-insights">
-        <h3>Data Insights</h3>
-        <p><strong>River Level:</strong> 3.5m</p>
-        <p><strong>Rainfall:</strong> 120mm</p>
-        <p><strong>Flood Risk:</strong> Medium</p>
-
-        {/* 8-Day Forecast */}
-        <div className="forecast">
-          <h4>8-Day Forecast</h4>
-          <ul>
-            <li>Sat, Feb 22 - 12°C/7°C - Moderate Rain</li>
-            <li>Sun, Feb 23 - 15°C/9°C - Light Rain</li>
-            <li>Mon, Feb 24 - 16°C/10°C - Cloudy</li>
-            <li>Tue, Feb 25 - 17°C/11°C - Clear Sky</li>
-            <li>Wed, Feb 26 - 10°C/6°C - Cloudy</li>
-            <li>Thu, Feb 27 - 9°C/5°C - Light Rain</li>
-            <li>Fri, Feb 28 - 8°C/4°C - Light Rain</li>
-            <li>Sat, Mar 01 - 9°C/6°C - Slight Rain</li>
-          </ul>
+      </div>
+      <div className="data-insights">
+        <div className="data-header">
+          Data Insights
         </div>
-      </aside>
-    </main>
+        <div className="data-info">
+          <p>River Level: 3.5m</p>
+          <p>Rainfall: 120mm</p>
+          <p>Flood Risk: Medium</p>
+        </div>
+        <div className="data-forecast">
+          Day Forecast...
+        </div>
+      </div>
+    </div>
   );
-};
+}
 
 export default FloodMap;
