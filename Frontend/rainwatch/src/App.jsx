@@ -4,6 +4,7 @@ import Navbar from "./components/Navbar";
 import Sidebar from "./components/Sidebar";
 import Dashboard from "./components/Dashboard";
 import FloodMap from "./components/FloodMap"; // Import FloodMap Component
+import Chatbot from "./components/Chatbot";
 import "./styles.css";
 
 function App() {
@@ -16,6 +17,7 @@ function App() {
           <Routes>
             <Route path="/" element={<Dashboard />} /> {/* Home Page (Dashboard) */}
             <Route path="/floodmap" element={<FloodMap />} /> {/* Flood Map Page */}
+            <Route path="/chatbot" element={<Chatbot />} /> {/* Add Chatbot route */}
           </Routes>
         </div>
       </div>

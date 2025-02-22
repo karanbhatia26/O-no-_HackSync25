@@ -11,7 +11,11 @@ const Sidebar = () => {
             <FaMap /> Map
           </Link>
         </li>
-        <li><FaFlask /> Ask</li>
+        <li>
+          <Link to="/chatbot"> {/* Link to Chatbot */}
+            <FaFlask /> Ask
+          </Link>
+        </li>
         <li><FaCog /> Settings</li>
       </ul>
     </aside>
