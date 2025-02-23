@@ -1,4 +1,3 @@
-
 import torch
 import requests
 from fastapi import FastAPI, Query
@@ -9,6 +8,7 @@ import os
 import json
 import re
 from dotenv import load_dotenv
+from fastapi.middleware.cors import CORSMiddleware
 
 load_dotenv(dotenv_path="../ml/.env")
 
@@ -19,6 +19,15 @@ from model import FloodPredictor
 
 # Initialize FastAPI app
 app = FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],  # React Frontend URL
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
 
 # OpenWeather API key
 API_KEY = "b4e7b0f7f2d3290d396f7fc6d256d23e"  # Replace with your actual API key
@@ -137,7 +146,6 @@ def clean_and_parse_json(response_str):
     }
     
     return json_response
-
 
 @app.get("/")
 def home():

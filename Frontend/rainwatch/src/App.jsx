@@ -27,7 +27,7 @@ function App() {
           <Routes>
             {/* Step 1: Selection Page */}
             <Route path="/" element={<UserAdminSelection />} />
-            
+
             {/* Step 2: Authentication Routes */}
             <Route path="/user/register" element={<UserRegister setAuth={setIsAuthenticated} />} />
             <Route path="/user/login" element={<UserLogin setAuth={setIsAuthenticated} />} />
@@ -35,7 +35,7 @@ function App() {
             <Route path="/admin/login" element={<AdminLogin setAuth={setIsAuthenticated} />} />
 
             {/* Step 3: Protected Routes */}
-            <Route path="/dashboard" element={isAuthenticated ? <Dashboard /> : <Navigate to="/" />} />
+            <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/floodmap" element={isAuthenticated ? <FloodMap /> : <Navigate to="/" />} />
             <Route path="/chatbot" element={isAuthenticated ? <Chatbot /> : <Navigate to="/" />} />
           </Routes>
@@ -49,14 +49,14 @@ function App() {
 const ConditionalNavbar = ({ isAuthenticated }) => {
   const location = useLocation();
   const authPaths = ["/", "/user/login", "/user/register", "/admin/login", "/admin/register"];
-  return !authPaths.includes(location.pathname) && isAuthenticated ? <Navbar /> : null;
+  return <Navbar />
 };
 
 // Sidebar should only show when authenticated
 const ConditionalSidebar = ({ isAuthenticated }) => {
   const location = useLocation();
   const authPaths = ["/", "/user/login", "/user/register", "/admin/login", "/admin/register"];
-  return !authPaths.includes(location.pathname) && isAuthenticated ? <Sidebar /> : null;
+  return <Sidebar />
 };
 
 export default App;

@@ -1,40 +1,64 @@
-import React from "react";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-
-const data = [
-  { name: "Jan", rainfall: 30 },
-  { name: "Feb", rainfall: 20 },
-  { name: "Mar", rainfall: 50 },
-  { name: "Apr", rainfall: 80 },
-  { name: "May", rainfall: 60 },
-  { name: "Jun", rainfall: 90 },
-];
+import React, { useState, useEffect } from "react";
 
 const Dashboard = () => {
+  const [weather, setWeather] = useState(null);
+  const [prediction, setPrediction] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const location = "London";
+
+  useEffect(() => {
+    const fetchWeather = async () => {
+      try {
+        // Fetch Weather Data
+        const weatherResponse = await fetch(`http://127.0.0.1:8000/weather?city=${location}`);
+        if (!weatherResponse.ok) throw new Error(`Weather API error: ${weatherResponse.status}`);
+        const weatherData = await weatherResponse.json();
+
+        // Fetch Prediction Data
+        const predictResponse = await fetch(`http://127.0.0.1:8000/predict?city=${location}`);
+        if (!predictResponse.ok) throw new Error(`Predict API error: ${predictResponse.status}`);
+        const predictData = await predictResponse.json();
+
+        console.log("Fetched weather data:", weatherData);
+        console.log("Fetched prediction data:", predictData);
+
+        setWeather(weatherData);
+        setPrediction(predictData); // Extracting only the weather part of predict API response
+      } catch (error) {
+        console.error("Error fetching data:", error);
+        setError(error.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchWeather();
+  }, []);
+
+  if (loading) return <p>Loading weather data...</p>;
+  if (error) return <p>Error: {error}</p>;
+
   return (
     <div className="dashboard">
-      <h2>Risk Level: <span className="safe">Safe</span></h2>
+      <h2>Weather Dashboard</h2>
       <div className="grid">
-        <div className="card">Rainfall <br /> <strong>2.73 mm</strong></div>
-        <div className="card">Humidity <br /> <strong>60%</strong></div>
-        <div className="card">Temperature <br /> <strong>284.2 K</strong></div>
-        <div className="card">Wind Speed <br /> <strong>4.09 m/s</strong></div>
-        <div className="card">Cloud Cover <br /> <strong>83%</strong></div>
+        {/* Weather API Data */}
+        <div className="card">Current Temperature: <strong>{weather.main.temp}°C</strong></div>
+        <div className="card">Min Temp: <strong>{weather.main.temp_min}°C</strong></div>
+        <div className="card">Max Temp: <strong>{weather.main.temp_max}°C</strong></div>
+        <div className="card">Pressure: <strong>{weather.main.pressure} hPa</strong></div>
+        <div className="card">Humidity: <strong>{weather.main.humidity}%</strong></div>
+        <div className="card">Wind Speed: <strong>{weather.wind.speed} m/s</strong></div>
 
-        {/* Graph */}
-        <div className="chart">
-          <h3>Rainfall vs Time</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={data}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Line type="monotone" dataKey="rainfall" stroke="#0072ff" strokeWidth={2} />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
+        {/* Prediction API Data */}
+        {prediction && (
+          <>
+            <div className="card">Cloud Coverage: <strong>{prediction.weather.cloud_coverage}%</strong></div>
+            <div className="card">Rainfall: <strong>{prediction.weather.rainfall} mm</strong></div>
+            <div className="card">Flood Probability: <strong>{(prediction.flood_probability * 100).toFixed(2)}%</strong></div>
+          </>
+        )}
       </div>
     </div>
   );
