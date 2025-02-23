@@ -5,7 +5,10 @@ const Sidebar = () => {
   return (
     <aside className="sidebar">
       <ul>
-        <li><FaHome /> Home</li>
+        <li>
+        <Link to="/"><FaHome /> Home
+        </Link>
+        </li>
         <li>
           <Link to="/floodmap"> {/* Use Link to route to /floodmap */}
             <FaMap /> Map
