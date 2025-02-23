@@ -229,18 +229,23 @@ class MumbaiEvacuationRouter:
         return self._check_point_safety(point, "", "")
 
     def get_reward(self, current_node, next_node, end_node):
-        """Calculate reward with improved metrics"""
         reward = torch.tensor(0.0, device=self.device)
         
-        # Zone-based rewards (adjusted)
+        current_zone = self._get_node_zone(current_node)
         next_zone = self._get_node_zone(next_node)
+        
+        # Add progression reward for moving out of red zone
+        if current_zone == 'red' and next_zone != 'red':
+            reward += torch.tensor(200.0, device=self.device)
+        
+        # Existing zone penalties but reduced
         if next_zone == 'red':
-            reward -= torch.tensor(500.0, device=self.device)
+            reward -= torch.tensor(100.0, device=self.device)
         elif next_zone == 'yellow':
             reward -= torch.tensor(50.0, device=self.device)
         else:
-            reward += torch.tensor(10.0, device=self.device)
-        
+            reward += torch.tensor(100.0, device=self.device)
+
         if (current_node, next_node) in self.major_roads:
             reward += torch.tensor(20.0, device=self.device)
         elif (current_node, next_node) in self.essential_minor_roads:
@@ -374,7 +379,7 @@ class MumbaiEvacuationRouter:
         )
 
         temp_epsilon = self.epsilon
-        self.epsilon = 0
+        self.epsilon = 0.1
         
         route = [start_node]
         current_node = start_node
@@ -745,7 +750,7 @@ class MumbaiEvacuationRouter:
 
 def main():
     router = MumbaiEvacuationRouter(load_model=False, use_gpu=True)
-    router.train_rl(num_episodes=5000)
+    metrics = router.train_rl(num_episodes=1000)  # More episodes for better learning
     
     test_locations = [
         (19.0596, 72.8295, "Dharavi"),
