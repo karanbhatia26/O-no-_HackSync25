@@ -12,6 +12,7 @@ supabase_url = "https://wywakgsxojthkmouzpur.supabase.co"
 supabase_key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind5d2FrZ3N4b2p0aGttb3V6cHVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDAzMDcxMDYsImV4cCI6MjA1NTg4MzEwNn0.IObnIgcKmZ4ODVvM6JCK_-wITBnS9vG71PlR4tFLTjg"
 
 supabase: Client = create_client(supabase_url, supabase_key)
+print(supabase)  # This should show your PostgREST/Supabase connection details
 
 @app.route('/')
 def index():
@@ -20,27 +21,34 @@ def index():
 #Registering Users and Admins
 @app.route('/register-user', methods=['POST'])
 def register_user():
-    data = request.json
-    username = data.get("username")
-    password = data.get("password")
-    mobile = data.get("mobile")
-    location = data.get("location")
+    try:
+        data = request.get_json()
 
-    if not (username and password and mobile and location):
-        return jsonify({"error": "All fields are mandatory"}), 400
-    
-    # Hash the password
-    hashed_password = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+        username = data.get("username")
+        password = data.get("password")
+        mobile = data.get("mobileNumber")
+        location = data.get("location")
 
-    #Insert into Supabase
-    response = supabase.table("users").insert(
-        {"username": username, "password": hashed_password, "mobile": mobile, "location": location}
-    ).execute()
+        if not all([username, password, mobile, location]):
+            return jsonify({"error": "Missing required fields"}), 400
 
-    if response.get("error"):
-        return jsonify({"error": response["error"]["message"]}), 500
-    
-    return jsonify({"message": "User registered successfully!"}), 201
+        # Insert data into Supabase
+        response = supabase.table("users").insert({
+            "username": username,
+            "password": password,
+            "mobile": mobile,
+            "location": location
+        }).execute()
+
+        # Check for errors in Supabase response
+        if "error" in response and response["error"]:
+            return jsonify({"error": response["error"]["message"]}), 500
+
+        return jsonify({"message": "User registered successfully", "data": response["data"]}), 201
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 
     
 @app.route('/register-admin', methods=['POST'])
