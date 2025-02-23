@@ -36,8 +36,8 @@ function App() {
 
             {/* Step 3: Protected Routes */}
             <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/floodmap" element={isAuthenticated ? <FloodMap /> : <Navigate to="/" />} />
-            <Route path="/chatbot" element={isAuthenticated ? <Chatbot /> : <Navigate to="/" />} />
+            <Route path="/floodmap" element={<FloodMap />} />
+            <Route path="/chatbot" element={ <Chatbot />} />
           </Routes>
         </div>
       </div>

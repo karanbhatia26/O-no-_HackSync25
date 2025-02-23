@@ -9,9 +9,20 @@ import json
 import re
 from dotenv import load_dotenv
 from fastapi.middleware.cors import CORSMiddleware
+from twilio.rest import Client
+from typing import List, Dict
 
-load_dotenv(dotenv_path="../ml/.env")
+load_dotenv()
+required_env_vars = [
+    "TWILIO_ACCOUNT_SID",
+    "TWILIO_AUTH_TOKEN",
+    "TWILIO_PHONE_NUMBER",
+    "GROQ_API_KEY" 
+]
 
+missing_vars = [var for var in required_env_vars if not os.getenv(var)]
+if missing_vars:
+    raise ValueError(f"Missing required environment variables: {', '.join(missing_vars)}")
 # Add ml folder to system path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../ml")))
 
@@ -71,11 +82,18 @@ Risk Assessment:
 User Query:
 {chat_message}
 
-In all cases, format your answer using:
-  - Clear bullet points.
-  - **Bold text** for any important warnings.
-  - Specific numbers and context from the data provided.
-  - Short, actionable, and direct recommendations.
+
+Instructions:
+If the user's message is a greeting or general question (like "hello", "hi", "how are you"):
+  - Respond in a friendly, conversational tone
+  - Mention that you're a weather and flood safety assistant
+  - Offer to help with weather and flood-related information
+
+For weather or flood-related questions:
+  - Use bullet points
+  - Include **Bold text** for important warnings
+  - Reference specific numbers from the weather data
+  - Give actionable recommendations
 
 Response (NO PREAMBLE):
 """)
@@ -221,4 +239,113 @@ def suggestions(city: str = Query(..., description="Enter city name")):
         "city": weather_info["city"],
         "flood_probability": flood_probability.item(),
         "chat_response": cleaned_response
+    }
+TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
+TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
+TWILIO_PHONE_NUMBER = os.getenv("TWILIO_PHONE_NUMBER")
+
+# Initialize Twilio client
+twilio_client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+
+def send_flood_alert(phone_numbers: List[str], city: str, probability: float) -> Dict:
+    """
+    Send SMS alerts to provided phone numbers when flood risk is high
+    """
+    try:
+        message_body = (
+            f"⚠️ FLOOD ALERT for {city}\n"
+            f"Current flood probability: {probability:.1%}\n"
+            "Please take necessary precautions and stay safe."
+        )
+        
+        sent_messages = []
+        for phone_number in phone_numbers:
+            message = twilio_client.messages.create(
+                body=message_body,
+                from_=TWILIO_PHONE_NUMBER,
+                to=phone_number
+            )
+            sent_messages.append(message.sid)
+            
+        return {"status": "success", "message_ids": sent_messages}
+    
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+# Modify your existing predict_flood endpoint
+@app.get("/sms")
+def predict_flood(
+    city: str = Query(..., description="Enter city name"),
+    alert_numbers: List[str] = Query(None, description="Phone numbers to alert")
+):
+    """Fetch weather data, process it, and predict flood probability."""
+    weather_data = get_weather_data(city)
+
+    if "error" in weather_data:
+        return weather_data
+
+    weather_info, processed_data = process_weather_data(weather_data)
+
+    if "error" in weather_info:
+        return weather_info
+
+    flood_probability = model.rule_based_flood_probability(processed_data)
+    
+    # Send alerts if probability is high and phone numbers are provided
+    alert_response = None
+    if alert_numbers:  # Remove probability threshold for testing
+        message = "🟢 NO FLOOD RISK" if flood_probability.item() <= 0.7 else "🔴 HIGH FLOOD RISK"
+        alert_response = send_flood_alert(
+            alert_numbers, 
+            weather_info["city"], 
+            flood_probability.item()
+        )
+
+    return {
+        "city": weather_info["city"],
+        "weather": weather_info,
+        "flood_probability": flood_probability.item(),
+        "alert_status": alert_response
+    }
+@app.get("/chat")
+def chat_with_model(
+    city: str = Query(..., description="Enter city name"),
+    user_message: str = Query(..., description="Enter your question")
+):
+    """Chat interface for custom weather and flood-related queries."""
+    weather_data = get_weather_data(city)
+    
+    if "error" in weather_data:
+        return weather_data
+
+    weather_info, processed_data = process_weather_data(weather_data)
+
+    if "error" in weather_info:
+        return weather_info
+
+    flood_probability = model.rule_based_flood_probability(processed_data)
+    flood_occurred = flood_probability.item() > 0.5
+
+    prompt_inputs = {
+        "user_data": json.dumps({"city": weather_info["city"]}),
+        "Max_Temp": weather_info["temperature_max"],
+        "Min_Temp": weather_info["temperature_min"],
+        "Rainfall": weather_info["rainfall"],
+        "Relative_Humidity": weather_info["humidity"],
+        "Wind_Speed": weather_info["wind_speed"],
+        "Cloud_Coverage": weather_info["cloud_coverage"],
+        "Month": 2,  # Replace with dynamic month if needed
+        "flood_occurred": "Yes" if flood_occurred else "No",
+        "probability": f"{flood_probability.item():.2f}",
+        "chat_message": user_message
+    }
+    chain = prompt | llm
+    response = chain.invoke(prompt_inputs)
+    cleaned_response = clean_and_parse_json(response.content)
+
+    return {
+        "city": weather_info["city"],
+        "flood_probability": flood_probability.item(),
+        "chat_response": cleaned_response,
+        "user_query": user_message
     }
