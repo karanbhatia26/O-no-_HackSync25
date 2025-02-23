@@ -38,6 +38,8 @@ function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/floodmap" element={<FloodMap />} />
             <Route path="/chatbot" element={ <Chatbot />} />
+            <Route path="/floodmap" element={<FloodMap />} />
+            <Route path="/chatbot" element={isAuthenticated ? <Chatbot /> : <Navigate to="/" />} />
           </Routes>
         </div>
       </div>

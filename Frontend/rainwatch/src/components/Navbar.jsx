@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { FaBell, FaUser, FaUserShield } from "react-icons/fa";
 import { Link } from "react-router-dom";
+import "./Navbar.css"
 
 const Navbar = () => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -31,7 +32,7 @@ const Navbar = () => {
       </div>
       <div className="nav-icons" ref={dropdownRef}>
         <FaBell className="bell-icon" />
-        
+
         <FaUserShield className="admin-icon" onClick={toggleDropdown} />
         {isDropdownOpen && (
           <div className="dropdown">
