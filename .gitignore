@@ -1,3 +1,8 @@
 /ml/Balanced_dataset.csv
 /ml/flood_risk_dataset_india.csv
 /ml/flood_prediction.ipynb
+/ml/pycache
+*.env
+__pycache__/
+*.py[cod]
+*$py.class
