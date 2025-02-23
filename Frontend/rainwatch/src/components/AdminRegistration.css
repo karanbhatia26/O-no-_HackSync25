@@ -5,7 +5,7 @@
     justify-content: center;
     height: 100vh;
     width: 100%;
-    background: linear-gradient(to right, #8E2DE2, #4A00E0);
+    background: linear-gradient(to right, #1E3A8A, #00E5FF);
     text-align: center;
   }
   
@@ -53,13 +53,13 @@
   }
   
   .auth-container input:focus {
-    border-color: #8E2DE2;
-    box-shadow: 0 0 8px rgba(142, 45, 226, 0.2);
+    border-color: #1E3A8A;
+    box-shadow: 0 0 8px rgba(0, 123, 255, 0.2);
   }
   
   /* Submit button styling */
   .auth-container button {
-    background: #8E2DE2;
+    background-color: #1E3A8A;
     color: #fff;
     font-size: 18px;
     font-weight: 600;
@@ -71,7 +71,8 @@
   }
   
   .auth-container button:hover {
-    background: #4A00E0;
+    background-color: #00E5FF;
+    color: #1E3A8A;
   }
   
   /* Error and Success message styling */
