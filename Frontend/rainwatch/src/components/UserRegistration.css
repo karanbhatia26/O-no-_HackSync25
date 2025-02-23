@@ -1,0 +1,130 @@
+/* Full-page gradient background */
+.auth-page {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    width: 100%;
+    background: linear-gradient(to right, #1E3A8A, #00E5FF);
+    text-align: center;
+  }
+  
+  /* Authentication container (centered box) */
+  .auth-container {
+    width: 100%;
+    max-width: 400px;
+    min-height: 500px;
+    background: white;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    /* text-align: center; */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: transform 0.3s ease-in-out;
+  }
+  
+  /* Hover effect for authentication box */
+  .auth-container:hover {
+    transform: scale(1.02);
+    cursor: pointer;
+  }
+  
+  /* Title styling */
+  .auth-container h2 {
+    color: #333;
+    font-size: 24px;
+    margin-bottom: 20px;
+    font-weight: 600;
+  }
+  
+  /* Form input styling */
+  .auth-container form {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+  }
+  
+  /* Input field styles */
+  .auth-container input {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 16px;
+    transition: border-color 0.3s ease;
+    outline: none;
+  }
+  
+  .auth-container input:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 8px rgba(0, 123, 255, 0.2);
+  }
+  
+  /* Submit button styling */
+  .auth-container button {
+    background: #1E3A8A;
+    color: #fff;
+    font-size: 18px;
+    font-weight: 600;
+    padding: 12px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.3s ease;
+  }
+  
+  .auth-container button:hover {
+    background: #00E5FF;
+    color: #1E3A8A;
+  }
+  
+  /* Success & Error Messages */
+  .success {
+    color: #28a745;
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 10px;
+  }
+  
+  .error {
+    color: #dc3545;
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 10px;
+  }
+  
+  /* Login link styling */
+  .auth-container p {
+    margin-top: 10px;
+    font-size: 14px;
+  }
+  
+  .auth-container p a {
+    color: #1E3A8A;
+    text-decoration: none;
+    font-weight: 600;
+  }
+  
+  .auth-container p a:hover {
+    text-decoration: underline;
+    color: #00E5FF;
+  }
+  
+  /* Responsive design */
+  @media (max-width: 768px) {
+    .auth-container {
+      width: 90%;
+      padding: 25px;
+    }
+  
+    .auth-container h2 {
+      font-size: 20px;
+    }
+  
+    .auth-container button {
+      font-size: 16px;
+    }
+  }
+  

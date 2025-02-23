@@ -6,11 +6,14 @@ import Sidebar from "./components/Sidebar";
 import Dashboard from "./components/Dashboard";
 import FloodMap from "./components/FloodMap"; // Import FloodMap Component
 import Chatbot from "./components/Chatbot";
-import { UserLogin, UserRegister, AdminLogin, AdminRegister } from "./components/AuthComponents";
 import UserAdminSelection from "./components/UserAdminSelection.jsx";
 import "./styles.css";
 import { Navigate } from "react-router-dom";
 import { useLocation } from "react-router-dom";
+import UserLogin from "./components/UserLogin.jsx";
+import UserRegister from "./components/UserRegistration.jsx";
+import AdminLogin from "./components/AdminLogin.jsx";
+import AdminRegister from "./components/AdminRegister.jsx";
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false); // Track login status
