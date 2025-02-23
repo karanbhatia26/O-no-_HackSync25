@@ -16,4 +16,3 @@ export function AdminLogin() {
 export function AdminRegister() {
   return <Auth isLogin={false} isAdmin={true} />;
 }
-

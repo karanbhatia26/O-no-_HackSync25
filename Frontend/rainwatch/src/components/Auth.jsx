@@ -43,7 +43,7 @@ function Auth({ isLogin, isAdmin }) {
         <input type="text" placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} required />
         <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required />
         <input type="tel" placeholder="Mobile Number" value={mobileNumber} onChange={(e) => setMobileNumber(e.target.value)} required />
-        <input type="text" placeholder="Location" value={location} onChange={(e) => setLocation(e.target.value)} required />
+        <input type="text" placeholder="City/Town" value={location} onChange={(e) => setLocation(e.target.value)} required />
         <button type="submit">{isLogin ? 'Login' : 'Register'}</button>
       </form>
     </div>
