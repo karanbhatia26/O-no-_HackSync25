@@ -1,0 +1,107 @@
+/* Full-page gradient background */
+.auth-page {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    width: 100%;
+    background: linear-gradient(to right, #8E2DE2, #4A00E0);
+    text-align: center;
+  }
+  
+  /* Authentication container (centered box) */
+  .auth-container {
+    width: 100%;
+    max-width: 400px;
+    background: white;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    text-align: center;
+    transition: transform 0.3s ease-in-out;
+  }
+  
+  /* Hover effect for authentication box */
+  .auth-container:hover {
+    transform: scale(1.02);
+  }
+  
+  /* Title styling */
+  .auth-container h2 {
+    color: #333;
+    font-size: 24px;
+    margin-bottom: 20px;
+    font-weight: 600;
+  }
+  
+  /* Form input styling */
+  .auth-container form {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+  }
+  
+  /* Input field styles */
+  .auth-container input {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 16px;
+    transition: border-color 0.3s ease;
+    outline: none;
+  }
+  
+  .auth-container input:focus {
+    border-color: #8E2DE2;
+    box-shadow: 0 0 8px rgba(142, 45, 226, 0.2);
+  }
+  
+  /* Submit button styling */
+  .auth-container button {
+    background: #8E2DE2;
+    color: #fff;
+    font-size: 18px;
+    font-weight: 600;
+    padding: 12px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.3s ease;
+  }
+  
+  .auth-container button:hover {
+    background: #4A00E0;
+  }
+  
+  /* Error and Success message styling */
+  .error {
+    color: #dc3545;
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 10px;
+  }
+  
+  .success {
+    color: #28a745;
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 10px;
+  }
+  
+  /* Responsive design */
+  @media (max-width: 768px) {
+    .auth-container {
+      width: 90%;
+      padding: 25px;
+    }
+  
+    .auth-container h2 {
+      font-size: 20px;
+    }
+  
+    .auth-container button {
+      font-size: 16px;
+    }
+  }
+  

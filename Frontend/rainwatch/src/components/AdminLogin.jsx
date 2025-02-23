@@ -1,4 +1,6 @@
 import React, { useState } from "react";
+import "./AdminLogin.css";
+import { Link } from "react-router-dom";
 
 function AdminLogin() {
   const [username, setUsername] = useState("");
@@ -29,14 +31,17 @@ function AdminLogin() {
   };
 
   return (
-    <div className="auth-container">
-      <h2>Admin Login</h2>
-      {error && <p className="error">{error}</p>}
-      <form onSubmit={handleSubmit}>
-        <input type="text" placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} required />
-        <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-        <button type="submit">Login</button>
-      </form>
+    <div className="auth-page">
+        <div className="auth-container">
+          <h2>Admin Login</h2>
+          {error && <p className="error">{error}</p>}
+          <form onSubmit={handleSubmit}>
+            <input type="text" placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} required />
+            <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+            <button type="submit">Login</button>
+          </form>
+          <p>Don't have an account? <Link to="/admin/register">Create an account here</Link></p>
+        </div>
     </div>
   );
 }

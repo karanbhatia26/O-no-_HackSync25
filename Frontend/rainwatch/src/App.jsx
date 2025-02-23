@@ -13,7 +13,7 @@ import { useLocation } from "react-router-dom";
 import UserLogin from "./components/UserLogin.jsx";
 import UserRegister from "./components/UserRegistration.jsx";
 import AdminLogin from "./components/AdminLogin.jsx";
-import AdminRegister from "./components/AdminRegister.jsx";
+import AdminRegister from "./components/AdminRegistration.jsx";
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false); // Track login status
