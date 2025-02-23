@@ -40,8 +40,8 @@ function AdminRegister() {
           <form onSubmit={handleSubmit}>
             <input type="text" placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} required />
             <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-            <input type="tel" placeholder="Mobile Number" value={mobileNumber} onChange={(e) => setMobileNumber(e.target.value)} required />
-            <input type="text" placeholder="Location" value={location} onChange={(e) => setLocation(e.target.value)} required />
+            <input type="tel" placeholder="Mobile Number (eg: 9967457425)" value={mobileNumber} onChange={(e) => setMobileNumber(e.target.value)} required />
+            <input type="text" placeholder="City (eg:mumbai)" value={location} onChange={(e) => setLocation(e.target.value)} required />
             <button type="submit">Register</button>
           </form>
           <p>Already have an account? <Link to="/admin/login">Login here</Link></p>
