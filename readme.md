@@ -141,4 +141,4 @@ Returns evacuation route HTML for a given location
 - Karan Bhatia
 - Nickhil Shivakumar
 - Kushl Alve
-- V
+- Vedika Walhe
