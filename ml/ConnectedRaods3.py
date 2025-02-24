@@ -96,6 +96,7 @@ class MumbaiEvacuationRouter:
         for zone_type in ['red', 'yellow']:
             for coord in self.danger_zones.get(zone_type, []):
                 point = Point(coord[1], coord[0])
+                # Convert buffer_radius from meters to degrees approximately
                 buffer_zone = point.buffer(self.buffer_radius / 111000)
                 self.zone_geometries[zone_type].append({
                     'geometry': buffer_zone,
@@ -267,7 +268,7 @@ class MumbaiEvacuationRouter:
     def _euclidean_distance(self, node1, node2):
         x1, y1 = self.G.nodes[node1]['x'], self.G.nodes[node1]['y']
         x2, y2 = self.G.nodes[node2]['x'], self.G.nodes[node2]['y']
-        return sqrt((x2-x1)**2 + (y2-y1)**2)
+        return sqrt((x2 - x1)**2 + (y2 - y1)**2)
 
     def update_dynamic_route(self, start_node, end_node, current_conditions):
         state = self.get_state(start_node)
@@ -315,22 +316,210 @@ class MumbaiEvacuationRouter:
         safe_towns.sort(key=lambda x: x[1])
         return safe_towns[:num_options]
 
-    def find_best_evacuation_route(self, start_location):
+    # =========================================================================
+    # NEW & IMPROVED METHODS
+    # =========================================================================
+
+    def find_evacuation_route(self, start_location, end_location):
+        """Find evacuation route with improved routing logic and verification"""
         if self.G is None:
             print("Error: Road network not initialized!")
             return None, None
 
-        # Find nearest safe towns
-        safe_options = self.find_nearest_safe_towns(start_location)
-        
-        if not safe_options:
-            print("No safe towns found!")
+        # Verify start and end locations are valid
+        try:
+            start_node = ox.nearest_nodes(self.G, start_location[1], start_location[0])
+            end_node = ox.nearest_nodes(self.G, end_location[1], end_location[0])
+            
+            # Verify the nodes exist and are different
+            if not (self.G.has_node(start_node) and self.G.has_node(end_node)):
+                print("Invalid start or end node!")
+                return None, None
+                
+            if start_node == end_node:
+                print("Start and end locations are the same!")
+                return None, None
+                
+        except Exception as e:
+            print(f"Error finding nodes: {e}")
             return None, None
 
-        print("\nEvaluating routes to nearest safe towns:")
+        # Initialize route finding
+        route = [start_node]
+        visited = {start_node}
+        max_attempts = 100
+        attempts = 0
+        current_node = start_node
+        
+        while current_node != end_node and attempts < max_attempts:
+            next_node = self._find_best_next_node(current_node, end_node, visited)
+            
+            if next_node is None:
+                # If stuck, try to find alternative path avoiding red zones
+                alternative_node = self._find_escape_route(current_node, end_node, visited)
+                if alternative_node is None:
+                    print("Unable to find valid route!")
+                    return None, None
+                next_node = alternative_node
+            
+            route.append(next_node)
+            visited.add(next_node)
+            current_node = next_node
+            attempts += 1
+            
+            # Early termination if stuck in danger zones
+            if attempts > 20 and self._is_stuck_in_danger(route[-10:]):
+                print("Route stuck in danger zone, attempting reroute...")
+                alt = self._find_alternative_route(start_location, end_location)
+                if alt is None:
+                    return None, None
+                route, stats = alt
+                return route, stats
+        
+        if attempts >= max_attempts:
+            print("Route finding exceeded maximum attempts!")
+            return None, None
+            
+        # Validate final route
+        if not self._is_route_valid(route):
+            print("Generated route is invalid!")
+            return None, None
+            
+        return route, self._analyze_route(route)
+
+    def _find_best_next_node(self, current_node, end_node, visited):
+        """Find the best next node considering safety and progress"""
+        neighbors = list(self.G.neighbors(current_node))
+        if not neighbors:
+            return None
+            
+        # Score each neighbor
+        neighbor_scores = []
+        for neighbor in neighbors:
+            if neighbor in visited:
+                continue
+            score = self._calculate_node_score(current_node, neighbor, end_node)
+            neighbor_scores.append((neighbor, score))
+            
+        if not neighbor_scores:
+            return None
+            
+        # Return the neighbor with the best score
+        return max(neighbor_scores, key=lambda x: x[1])[0]
+
+    def _calculate_node_score(self, current_node, next_node, end_node):
+        """Calculate a score for a potential next node"""
+        score = 0.0
+        
+        # Distance progress towards goal
+        current_dist = self._euclidean_distance(current_node, end_node)
+        next_dist = self._euclidean_distance(next_node, end_node)
+        progress = current_dist - next_dist
+        score += progress * 10
+        
+        # Zone safety
+        zone_type = self._get_node_zone(next_node)
+        if zone_type == 'red':
+            score -= 50
+        elif zone_type == 'yellow':
+            score -= 20
+        else:
+            score += 10
+            
+        # Prefer major roads
+        if (current_node, next_node) in self.major_roads:
+            score += 15
+        elif (current_node, next_node) in self.essential_minor_roads:
+            score += 5
+            
+        return score
+
+    def _find_escape_route(self, current_node, end_node, visited):
+        """Find an escape route when stuck"""
+        # Use BFS to find nearest safe node
+        queue = [(current_node, [current_node])]
+        escape_visited = {current_node}
+        
+        while queue:
+            node, path = queue.pop(0)
+            
+            if self._get_node_zone(node) == 'blue':
+                # Found safe node, return next step in path
+                return path[1] if len(path) > 1 else None
+                
+            for neighbor in self.G.neighbors(node):
+                if neighbor not in escape_visited and neighbor not in visited:
+                    escape_visited.add(neighbor)
+                    queue.append((neighbor, path + [neighbor]))
+                    
+        return None
+
+    def _is_stuck_in_danger(self, recent_nodes, threshold=0.8):
+        """Check if route is stuck in danger zones"""
+        if len(recent_nodes) < 2:
+            return False
+            
+        danger_count = sum(1 for node in recent_nodes if self._get_node_zone(node) in ['red', 'yellow'])
+        return (danger_count / len(recent_nodes)) > threshold
+
+    def _find_alternative_route(self, start_location, end_location):
+        """Find alternative route avoiding current path"""
+        print("Finding alternative route...")
+        
+        # Temporarily increase penalties for dangerous zones
+        original_weights = {}
+        for u, v, k, data in self.G.edges(keys=True, data=True):
+            original_weights[(u, v, k)] = data.get('weight', 1)
+            if data.get('zone') == 'red':
+                self.G.edges[u, v, k]['weight'] *= 5
+            elif data.get('zone') == 'yellow':
+                self.G.edges[u, v, k]['weight'] *= 2
+                
+        # Try to find new route
+        try:
+            route, stats = self.find_evacuation_route(start_location, end_location)
+        finally:
+            # Restore original weights
+            for (u, v, k), weight in original_weights.items():
+                self.G.edges[u, v, k]['weight'] = weight
+                
+        return route, stats
+
+    def _is_route_valid(self, route):
+        """Validate the generated route"""
+        if len(route) < 2:
+            return False
+            
+        # Check route connectivity
+        for i in range(len(route) - 1):
+            if not self.G.has_edge(route[i], route[i + 1]):
+                return False
+                
+        # Check for loops
+        if len(route) != len(set(route)):
+            return False
+            
+        return True
+
+    def find_best_evacuation_route(self, start_location):
+        """Find best evacuation route with improved validation"""
+        if self.G is None:
+            print("Error: Road network not initialized!")
+            return None, None
+
+        # Verify start location is valid
+        start_point = Point(start_location[1], start_location[0])
+        start_zone = self._check_point_safety(start_point, start_location[2], "Start")
+        
+        # Get safe options with proper distance calculation
+        safe_options = self.find_nearest_safe_towns(start_location)
+        if not safe_options:
+            print("No safe destinations found!")
+            return None, None
+
+        print(f"\nEvaluating routes from {start_location[2]} ({start_zone} zone)")
         best_route = None
         best_stats = None
-        best_destination = None
         best_score = float('inf')
 
         for safe_town, distance in safe_options:
@@ -338,109 +527,297 @@ class MumbaiEvacuationRouter:
             route, stats = self.find_evacuation_route(start_location, safe_town)
             
             if route and stats:
-                route_score = stats['total_distance'] * (
-                    1 + 
-                    stats['zone_percentages'].get('red', 0) * 2 + 
-                    stats['zone_percentages'].get('yellow', 0)
-                ) / 100
-
-                print(f"Route score: {route_score:.2f}")
+                # Calculate score considering multiple factors
+                score = self._calculate_route_score(stats, distance, start_zone)
+                print(f"Route score: {score:.2f}")
                 
-                if route_score < best_score:
-                    best_score = route_score
+                if score < best_score:
+                    best_score = score
                     best_route = route
                     best_stats = stats
-                    best_destination = safe_town
 
-        if best_route:
-            print(f"\nBest evacuation route found!")
-            print(f"Recommended destination: {best_destination[2]}")
-            self._print_route_stats(best_stats)
-            return best_route, best_stats
-        else:
-            print("\nNo viable evacuation routes found!")
-            return None, None
+        return best_route, best_stats
 
-    def find_evacuation_route(self, start_location, end_location):
-        """Find evacuation route using trained RL model"""
-        if self.G is None:
-            print("Error: Road network not initialized!")
-            return None, None
-
-        start_node = ox.nearest_nodes(
-            self.G, 
-            start_location[1], 
-            start_location[0]
-        )
-        end_node = ox.nearest_nodes(
-            self.G, 
-            end_location[1], 
-            end_location[0]
-        )
-
-        temp_epsilon = self.epsilon
-        self.epsilon = 0.1
+    def _calculate_route_score(self, stats, distance, start_zone):
+        """Calculate comprehensive route score"""
+        score = stats['total_distance']
         
-        route = [start_node]
-        current_node = start_node
+        # Penalize dangerous zones more heavily if starting in safe zone
+        zone_multiplier = 2.0 if start_zone == 'blue' else 1.5
+        score *= (1 + 
+                 stats['zone_percentages'].get('red', 0) * zone_multiplier + 
+                 stats['zone_percentages'].get('yellow', 0) * (zone_multiplier * 0.5))
         
-        while current_node != end_node and len(route) < 100:
-            next_node = self._select_action(current_node, end_node)
+        # Consider initial distance to safe town
+        score += distance * 100
+        
+        return score
+
+    def train_rl(self, num_episodes=2000):
+        """Enhanced RL training with better exploration and learning"""
+        print(f"\nTraining RL routing system on {self.device}...")
+        
+        metrics = {
+            'episodes': [],
+            'rewards': [],
+            'success_rate': [],
+            'red_zone_avoidance': [],
+            'zone_distribution': {'red': 0, 'yellow': 0, 'blue': 0}
+        }
+        
+        # Generate diverse training points
+        training_points = self._generate_diverse_training_points()
+        
+        best_avg_reward = float('-inf')
+        best_model = None
+        
+        # Dynamic learning parameters
+        self.epsilon = torch.tensor(1.0, device=self.device)  # Start with high exploration
+        min_epsilon = torch.tensor(0.1, device=self.device)
+        epsilon_decay = torch.tensor(0.995, device=self.device)
+        
+        success_window = []
+        
+        for episode in range(num_episodes):
+            # Select training points ensuring coverage of different zones
+            start_point = self._select_training_point(training_points, episode)
+            safe_options = self.find_nearest_safe_towns(start_point, num_options=2)
             
-            if next_node in route:
-                break
+            if not safe_options:
+                continue
                 
-            route.append(next_node)
-            current_node = next_node
+            # Randomly select from available safe destinations
+            end_point = random.choice(safe_options)[0]
+            
+            # Run training episode with enhanced monitoring
+            episode_data = self._run_enhanced_training_episode(start_point, end_point, episode)
+            
+            if episode_data:
+                # Update metrics
+                metrics['episodes'].append(episode)
+                metrics['rewards'].append(episode_data['total_reward'])
+                metrics['success_rate'].append(float(episode_data['success']))
+                metrics['red_zone_avoidance'].append(float(not episode_data['entered_red_zone']))
+                
+                # Track success rate
+                success_window.append(episode_data['success'])
+                if len(success_window) > 100:
+                    success_window.pop(0)
+                
+                # Decay epsilon based on performance
+                if episode > 100:
+                    recent_success_rate = sum(success_window) / len(success_window)
+                    if recent_success_rate > 0.7:
+                        self.epsilon = torch.max(min_epsilon, self.epsilon * epsilon_decay)
+                
+                # Log progress periodically
+                if (episode + 1) % 100 == 0:
+                    self._log_enhanced_training_progress(metrics, episode, num_episodes)
+                    
+                    # Save best model based on comprehensive criteria
+                    avg_reward = torch.tensor(sum(metrics['rewards'][-100:]) / 100, device=self.device)
+                    recent_success = sum(metrics['success_rate'][-100:]) / 100
+                    recent_avoidance = sum(metrics['red_zone_avoidance'][-100:]) / 100
+                    
+                    combined_score = (avg_reward * 0.4 + recent_success * 0.3 + recent_avoidance * 0.3)
+                    
+                    if combined_score > best_avg_reward:
+                        best_avg_reward = combined_score
+                        best_model = {
+                            'q_table': self.q_table.copy(),
+                            'metrics': metrics.copy(),
+                            'combined_score': combined_score.item(),
+                            'timestamp': datetime.now().isoformat()
+                        }
         
-        self.epsilon = temp_epsilon
-        return route, self._analyze_route(route)
+        # Save best model if it meets performance criteria
+        if best_avg_reward > 0.7:  # Adjusted threshold
+            print(f"\nSaving best performing model (score: {best_avg_reward:.2f})")
+            torch.save(best_model, 'improved_evacuation_model.pth')
+            print("Model saved successfully!")
+        
+        return metrics
 
-    def _analyze_route(self, route):
-        """Analyze the route and calculate statistics"""
-        total_distance = 0
-        zone_counts = {'red': 0, 'yellow': 0, 'blue': 0}
+    def _generate_diverse_training_points(self, num_points=2000):
+        """Generate training points ensuring coverage of different zones"""
+        mumbai_bounds = {
+            'north': 19.2813,
+            'south': 18.8921,
+            'east': 73.0525,
+            'west': 72.7754
+        }
         
-        for u, v in zip(route[:-1], route[1:]):
-            edge_data = min(
-                self.G.get_edge_data(u, v).values(),
-                key=lambda x: x.get('weight', float('inf'))
-            )
-            total_distance += edge_data.get('length', 1)
-            zone_counts[edge_data['zone']] += 1
+        training_points = []
+        points_per_zone = {'red': [], 'yellow': [], 'blue': []}
         
-        total_segments = sum(zone_counts.values())
-        if total_segments == 0:
+        while len(training_points) < num_points:
+            lat = random.uniform(mumbai_bounds['south'], mumbai_bounds['north'])
+            lon = random.uniform(mumbai_bounds['west'], mumbai_bounds['east'])
+            point = (lat, lon, "training_point")
+            
+            try:
+                ox.distance.nearest_nodes(self.G, lon, lat)
+            except Exception:
+                continue
+            
+            # Classify point by zone
+            point_zone = self._check_point_safety(Point(lon, lat), "training", "Training")
+            points_per_zone[point_zone].append(point)
+            training_points.append(point)
+        
+        # Ensure balanced distribution
+        min_points = min(len(points) for points in points_per_zone.values())
+        balanced_points = []
+        for zone_points in points_per_zone.values():
+            balanced_points.extend(random.sample(zone_points, min_points))
+        
+        return balanced_points
+
+    def _select_training_point(self, training_points, episode):
+        """Select a training point, could be random or based on episode index"""
+        return random.choice(training_points)
+
+    def _run_enhanced_training_episode(self, start_point, end_point, episode):
+        """Run training episode with improved monitoring and safety checks"""
+        try:
+            start_node = ox.nearest_nodes(self.G, start_point[1], start_point[0])
+            end_node = ox.nearest_nodes(self.G, end_point[1], end_point[0])
+            
+            if not (self.G.has_node(start_node) and self.G.has_node(end_node)):
+                return None
+            
+            current_node = start_node
+            route = [current_node]
+            total_reward = torch.tensor(0.0, device=self.device)
+            entered_red_zone = False
+            success = False
+            stuck_counter = 0
+            
+            while len(route) < 100:
+                # Get next action with safety considerations
+                next_node = self._select_safe_action(current_node, end_node, route)
+                
+                if next_node is None:
+                    break
+                    
+                # Calculate and apply reward
+                reward = self._calculate_enhanced_reward(current_node, next_node, end_node, route)
+                total_reward += reward
+                
+                # Update Q-table with safety emphasis
+                self._update_q_value(current_node, next_node, reward, end_node)
+                
+                # Track zone entry
+                if self._get_node_zone(next_node) == 'red':
+                    entered_red_zone = True
+                
+                route.append(next_node)
+                current_node = next_node
+                
+                # Check for success
+                if current_node == end_node:
+                    success = True
+                    break
+                
+                # Check for stuck condition
+                if self._is_stuck_in_danger(route[-10:]):
+                    stuck_counter += 1
+                    if stuck_counter > 3:
+                        break
+                
             return {
-                'total_distance': 0,
-                'zone_counts': zone_counts,
-                'zone_percentages': {zone: 0 for zone in zone_counts}
+                'route': route,
+                'total_reward': total_reward.item(),
+                'success': success,
+                'entered_red_zone': entered_red_zone
             }
-        
-        zone_percentages = {
-            zone: (count / total_segments) * 100 
-            for zone, count in zone_counts.items()
-        }
-        
-        return {
-            'total_distance': total_distance,
-            'zone_counts': zone_counts,
-            'zone_percentages': zone_percentages
-        }
+            
+        except Exception as e:
+            print(f"Error in training episode: {e}")
+            return None
 
-    def _check_point_safety(self, point, name, point_type):
-        for zone_type in ['red', 'yellow']:
-            for zone in self.zone_geometries[zone_type]:
-                if zone['geometry'].contains(point):
-                    print(f"{point_type} point {name} is in a {zone_type} zone ({zone['name']})")
-                    return zone_type
-        print(f"{point_type} point {name} is in a blue zone")
-        return 'blue'
+    def _calculate_enhanced_reward(self, current_node, next_node, end_node, route):
+        """Calculate reward with enhanced safety considerations"""
+        reward = torch.tensor(0.0, device=self.device)
+        
+        # Zone-based rewards/penalties
+        current_zone = self._get_node_zone(current_node)
+        next_zone = self._get_node_zone(next_node)
+        
+        # Reward for moving to safer zones
+        if current_zone == 'red' and next_zone != 'red':
+            reward += torch.tensor(300.0, device=self.device)
+        elif current_zone == 'yellow' and next_zone == 'blue':
+            reward += torch.tensor(200.0, device=self.device)
+        
+        # Penalties for dangerous zones
+        if next_zone == 'red':
+            reward -= torch.tensor(200.0, device=self.device)
+        elif next_zone == 'yellow':
+            reward -= torch.tensor(100.0, device=self.device)
+        
+        # Road type rewards
+        if (current_node, next_node) in self.major_roads:
+            reward += torch.tensor(50.0, device=self.device)
+        elif (current_node, next_node) in self.essential_minor_roads:
+            reward += torch.tensor(25.0, device=self.device)
+        
+        # Progress reward
+        current_dist = self._euclidean_distance(current_node, end_node)
+        next_dist = self._euclidean_distance(next_node, end_node)
+        progress = current_dist - next_dist
+        progress_reward = progress * torch.tensor(100.0, device=self.device)
+        reward += progress_reward
+        
+        # Success reward
+        if next_node == end_node and next_zone == 'blue':
+            reward += torch.tensor(1000.0, device=self.device)
+        
+        # Stuck penalty
+        if len(route) > 10 and self._is_stuck_in_danger(route[-10:]):
+            reward -= torch.tensor(500.0, device=self.device)
+        
+        return reward
 
-    def _print_route_stats(self, stats):
-        print(f"Total distance: {stats['total_distance']:.2f} meters")
-        for zone, count in stats['zone_counts'].items():
-            print(f"{zone.capitalize()} zone segments: {count} ({stats['zone_percentages'][zone]:.2f}%)")
+    def _update_q_value(self, current_node, next_node, reward, end_node):
+        """Update Q-value with enhanced learning"""
+        current_state = self.get_state(current_node)
+        next_state = self.get_state(next_node)
+        
+        # Initialize Q-values if needed
+        if current_state not in self.q_table:
+            self.q_table[current_state] = {n: torch.tensor(0.0, device=self.device) for n in self.G.neighbors(current_node)}
+        
+        if next_state not in self.q_table:
+            self.q_table[next_state] = {n: torch.tensor(0.0, device=self.device) for n in self.G.neighbors(next_node)}
+        
+        # Calculate target Q-value
+        if next_node == end_node:
+            max_next_q = torch.tensor(0.0, device=self.device)
+        else:
+            max_next_q = torch.max(torch.tensor(list(self.q_table[next_state].values()), device=self.device))
+        
+        # Update Q-value with enhanced learning rate
+        current_q = self.q_table[current_state][next_node]
+        new_q = current_q + self.learning_rate * (reward + self.discount_factor * max_next_q - current_q)
+        self.q_table[current_state][next_node] = new_q
+
+    def _select_safe_action(self, current_node, end_node, route):
+        """Select next action with safety considerations, avoiding loops"""
+        visited = set(route)
+        return self._find_best_next_node(current_node, end_node, visited)
+
+    def _log_enhanced_training_progress(self, metrics, episode, total):
+        recent_rewards = metrics['rewards'][-100:]
+        recent_success = metrics['success_rate'][-100:]
+        recent_avoidance = metrics['red_zone_avoidance'][-100:]
+        avg_reward = sum(recent_rewards) / len(recent_rewards) if recent_rewards else 0
+        success_rate = (sum(recent_success) / len(recent_success)) * 100 if recent_success else 0
+        avoidance_rate = (sum(recent_avoidance) / len(recent_avoidance)) * 100 if recent_avoidance else 0
+        print(f"\nEpisode {episode+1}/{total}")
+        print(f"Average Reward: {avg_reward:.2f}")
+        print(f"Success Rate: {success_rate:.2f}%")
+        print(f"Red Zone Avoidance: {avoidance_rate:.2f}%")
 
     def visualize_route(self, route):
         center_lat = 19.0760
@@ -458,10 +835,7 @@ class MumbaiEvacuationRouter:
                 bounds = zone['geometry'].bounds
                 radius = self.buffer_radius
                 folium.Circle(
-                    location=[
-                        (bounds[1] + bounds[3]) / 2,
-                        (bounds[0] + bounds[2]) / 2
-                    ],
+                    location=[(bounds[1] + bounds[3]) / 2, (bounds[0] + bounds[2]) / 2],
                     radius=radius,
                     popup=f"{zone['name']} ({zone_colors[zone_type]['name']})",
                     color=zone_colors[zone_type]['color'],
@@ -481,7 +855,7 @@ class MumbaiEvacuationRouter:
                 fill_opacity=0.2
             ).add_to(route_map)
         
-        for i in range(len(route)-1):
+        for i in range(len(route) - 1):
             node1, node2 = route[i], route[i+1]
             coord1 = [self.G.nodes[node1]['y'], self.G.nodes[node1]['x']]
             coord2 = [self.G.nodes[node2]['y'], self.G.nodes[node2]['x']]
@@ -533,7 +907,7 @@ class MumbaiEvacuationRouter:
         '''
         route_map.get_root().html.add_child(folium.Element(legend_html))
         
-        route_map.save('evacuation_route.html')
+        route_map.save('../Frontend/rainwatch/evacuation_route.html')
         print("Route map saved as evacuation_route.html")
 
     def _load_model(self):
@@ -570,166 +944,46 @@ class MumbaiEvacuationRouter:
         }, self.model_path)
         print(f"Model saved to {self.model_path}")
 
-    def _generate_training_points(self, num_points=1000):
-        """Generate random training points across Mumbai"""
-        mumbai_bounds = {
-            'north': 19.2813,
-            'south': 18.8921,
-            'east': 73.0525,
-            'west': 72.7754
-        }
+    def _analyze_route(self, route):
+        """Analyze the route and calculate statistics"""
+        total_distance = 0
+        zone_counts = {'red': 0, 'yellow': 0, 'blue': 0}
         
-        training_points = []
-        for _ in range(num_points):
-            lat = random.uniform(mumbai_bounds['south'], mumbai_bounds['north'])
-            lon = random.uniform(mumbai_bounds['west'], mumbai_bounds['east'])
-            point = (lat, lon, "training_point")
-            if ox.distance.nearest_nodes(self.G, lon, lat):
-                training_points.append(point)
+        for u, v in zip(route[:-1], route[1:]):
+            edge_data = min(
+                self.G.get_edge_data(u, v).values(),
+                key=lambda x: x.get('weight', float('inf'))
+            )
+            total_distance += edge_data.get('length', 1)
+            zone_counts[edge_data['zone']] += 1
         
-        return training_points
-
-    def train_rl(self, num_episodes=1000):
-        print(f"\nTraining RL routing system on {self.device}...")
-        
-        metrics = {
-            'episodes': [],
-            'rewards': [],
-            'success_rate': [],
-            'red_zone_avoidance': []
-        }
-        
-        training_points = self._generate_training_points()
-        
-        best_avg_reward = float('-inf')
-        best_model = None
-        
-        for episode in range(num_episodes):
-            start_point = random.choice(training_points)
-            safe_options = self.find_nearest_safe_towns(start_point, num_options=1)
-            
-            if not safe_options:
-                continue
-                
-            end_point = safe_options[0][0]
-            
-            episode_data = self._run_training_episode(start_point, end_point)
-            
-            if (episode + 1) % 1000 == 0:
-                avg_reward = torch.tensor(episode_data['total_reward'], device=self.device)
-                print(f"\nEpisode {episode + 1}/{num_episodes}")
-                print(f"Average Reward: {avg_reward.item():.2f}")
-                
-                if avg_reward > best_avg_reward:
-                    best_avg_reward = avg_reward
-                    best_model = {
-                        'q_table': self.q_table,
-                        'metrics': metrics,
-                        'avg_reward': avg_reward.item(),
-                        'timestamp': datetime.now().isoformat()
-                    }
-    
-        if best_avg_reward > 800:
-            print(f"\nSaving high-performing model (avg reward: {best_avg_reward:.2f})")
-            torch.save(best_model, 'evacuation_model.pth')
-            print("Model saved successfully!")
-        
-        return metrics
-
-    def _run_training_episode(self, start_point, end_point):
-        """Run training episode with proper error handling"""
-        try:
-            start_node = ox.nearest_nodes(self.G, start_point[1], start_point[0])
-            end_node = ox.nearest_nodes(self.G, end_point[1], end_point[0])
-            
-            if not self.G.has_node(start_node) or not self.G.has_node(end_node):
-                print(f"Invalid nodes: start={start_node}, end={end_node}")
-                return None
-            
-            current_node = start_node
-            route = [current_node]
-            total_reward = torch.tensor(0.0, device=self.device)
-            entered_red_zone = False
-            success = False
-            
-            while len(route) < 100:
-                try:
-                    next_node = self._select_action(current_node, end_node)
-                    
-                    reward = self.get_reward(current_node, next_node, end_node)
-                    total_reward += reward
-                    
-                    if self._get_node_zone(next_node) == 'red':
-                        entered_red_zone = True
-                    
-                    route.append(next_node)
-                    current_node = next_node
-                    
-                    if current_node == end_node:
-                        success = True
-                        break
-                        
-                except ValueError as e:
-                    print(f"Error selecting action: {e}")
-                    break
-                    
+        total_segments = sum(zone_counts.values())
+        if total_segments == 0:
             return {
-                'route': route,
-                'total_reward': total_reward.item(),
-                'success': success,
-                'entered_red_zone': entered_red_zone
-            }
-            
-        except Exception as e:
-            print(f"Error in training episode: {e}")
-            return None
-
-    def _select_action(self, current_node, end_node):
-        state = self.get_state(current_node)
-        
-        if state not in self.q_table:
-            neighbors = list(self.G.neighbors(current_node))
-            if not neighbors:
-                raise ValueError(f"Node {current_node} has no neighbors")
-                
-            self.q_table[state] = {
-                n: torch.tensor(0.0, device=self.device) 
-                for n in neighbors
+                'total_distance': 0,
+                'zone_counts': zone_counts,
+                'zone_percentages': {zone: 0 for zone in zone_counts}
             }
         
-        if torch.rand(1, device=self.device) < self.epsilon:
-            return random.choice(list(self.G.neighbors(current_node)))
-        else:
-            if not self.q_table[state]:
-                return random.choice(list(self.G.neighbors(current_node)))
-                
-            return max(
-                self.q_table[state].items(),
-                key=lambda x: x[1]
-            )[0]
-
-    def _save_model(self, metrics):
-        print("\nSaving trained model...")
-        torch.save({
-            'q_table': self.q_table,
-            'metrics': metrics,
-            'timestamp': datetime.now().isoformat()
-        }, self.model_path)
-        print(f"Model saved to {self.model_path}")
-
-    def _log_training_progress(self, metrics, episode, total):
-        recent = slice(-100, None)
-        avg_reward = sum(metrics['rewards'][recent]) / 100
-        success_rate = sum(metrics['success_rate'][recent])
-        avoid_rate = sum(metrics['red_zone_avoidance'][recent])
+        zone_percentages = {
+            zone: (count / total_segments) * 100 
+            for zone, count in zone_counts.items()
+        }
         
-        print(f"\nEpisode {episode}/{total}")
-        print(f"Average Reward: {avg_reward:.2f}")
-        print(f"Success Rate: {success_rate}%")
-        print(f"Red Zone Avoidance: {avoid_rate}%")
-        print(f"Zone Distribution: Red {metrics['zone_distribution']['red']:.1f}%, " 
-              f"Yellow {metrics['zone_distribution']['yellow']:.1f}%, "
-              f"Blue {metrics['zone_distribution']['blue']:.1f}%")
+        return {
+            'total_distance': total_distance,
+            'zone_counts': zone_counts,
+            'zone_percentages': zone_percentages
+        }
+
+    def _check_point_safety(self, point, name, point_type):
+        for zone_type in ['red', 'yellow']:
+            for zone in self.zone_geometries[zone_type]:
+                if zone['geometry'].contains(point):
+                    print(f"{point_type} point {name} is in a {zone_type} zone ({zone['name']})")
+                    return zone_type
+        print(f"{point_type} point {name} is in a blue zone")
+        return 'blue'
 
     def _verify_graph_connectivity(self):
         if not self.G:
@@ -763,7 +1017,10 @@ def main():
         route, stats = router.find_best_evacuation_route(start)
         if route:
             router.visualize_route(route)
-            router._print_route_stats(stats)
+            print("\nRoute Statistics:")
+            print(f"Total distance: {stats['total_distance']:.2f} meters")
+            for zone, count in stats['zone_counts'].items():
+                print(f"{zone.capitalize()} zone segments: {count} ({stats['zone_percentages'][zone]:.2f}%)")
         else:
             print(f"No safe route found from {start[2]}")
 
