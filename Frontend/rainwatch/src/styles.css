@@ -200,72 +200,66 @@ body {
 
 .flood-map-content {
   display: flex;
-  height: calc(100vh - 60px);
-  /* Adjust based on Navbar height */
-  padding: 20px;
-  background-color: #282c34;
-  /* Dark background as in the image */
-  margin-right: 0%;
+  width: calc(100vw - 220px); /* Account for sidebar width */
+  height: calc(100vh - 60px); /* Account for navbar height */
+  overflow: hidden;
+  position: relative;
+  background: #fff;
 }
 
 .map-container {
-  flex-grow: 1;
   display: flex;
-  flex-direction: column;
-  margin-right: 20px;
-  /* Add space between map and data */
+  width: 100%;
+  height: 100%;
+  position: relative;
 }
 
 .interactive-map {
-  flex-grow: 1;
-  background-color: #e0e0e0;
-  margin-bottom: 20px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  border-radius: 8px;
-  /* Rounded corners */
+  flex: 1;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+.interactive-map iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
 }
 
 .risk-levels {
-  display: flex;
-  justify-content: flex-start;
-  /* Align to the left */
-  align-items: center;
-  /* Vertically align items */
-  background-color: #383e4a;
-  /* Darker background for risk levels */
-  padding: 10px 20px;
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 200px;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 15px;
   border-radius: 8px;
-  /* Rounded corners */
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  z-index: 1000;
 }
 
-.risk-levels h3 {
-  margin-right: 20px;
-  /* Space between title and levels */
-  color: white;
-  /* White text */
-}
-
-.risk-levels .level {
-  padding: 8px 16px;
+.level {
+  display: flex;
+  align-items: center;
+  margin: 8px 0;
+  padding: 8px;
   border-radius: 4px;
-  color: white;
-  margin-right: 10px;
-  /* Space between levels */
+  background: rgba(255, 255, 255, 0.8);
 }
 
-.risk-levels .safe {
-  background-color: green;
+/* Update the dots to be more visible */
+.dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  margin-right: 8px;
+  border: 2px solid rgba(255, 255, 255, 0.8);
 }
 
-.risk-levels .moderate {
-  background-color: orange;
-}
-
-.risk-levels .high {
-  background-color: red;
-}
+.dot.blue { background: #000080; }
+.dot.yellow { background: #ffd700; }
+.dot.red { background: #8b0000; }
 
 .data-insights {
   width: 300px;

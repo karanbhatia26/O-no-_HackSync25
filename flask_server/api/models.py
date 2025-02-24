@@ -349,3 +349,15 @@ def chat_with_model(
         "chat_response": cleaned_response,
         "user_query": user_message
     }
+from fastapi.responses import HTMLResponse
+import os
+
+@app.get("/api/evacuation-route", response_class=HTMLResponse)
+async def get_evacuation_route():
+    try:
+        file_path = "../ml/evacuation_route.html"
+        with open(file_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        return HTMLResponse(content=content)
+    except Exception as e:
+        return HTMLResponse(content=f"Error loading map: {str(e)}", status_code=500)
