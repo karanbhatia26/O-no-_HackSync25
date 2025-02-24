@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
-import '../styles.css';
+import './Chatbot.css';
 
 function Chatbot() {
   const [messages, setMessages] = useState([]);

@@ -23,7 +23,6 @@ def index():
 def register_user():
     try:
         data = request.get_json()
-
         username = data.get("username")
         password = data.get("password")
         mobile = data.get("mobileNumber")
