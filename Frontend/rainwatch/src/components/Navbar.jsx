@@ -1,11 +1,13 @@
 import React, { useState, useRef, useEffect } from "react";
 import { FaBell, FaUser, FaUserShield } from "react-icons/fa";
 import { Link } from "react-router-dom";
-import "./Navbar.css"
+import "./Navbar.css";
+import profilePic from "./profile.jpg";
 
 const Navbar = () => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
+  // const profile = "./profile.jpg"
 
   const toggleDropdown = () => {
     setIsDropdownOpen(!isDropdownOpen);
@@ -30,7 +32,7 @@ const Navbar = () => {
       <div className="search-bar">
         <input type="text" placeholder="Search..." />
       </div>
-      <div className="nav-icons" ref={dropdownRef}>
+      {/* <div className="nav-icons" ref={dropdownRef}>
         <FaBell className="bell-icon" />
 
         <FaUserShield className="admin-icon" onClick={toggleDropdown} />
@@ -42,8 +44,8 @@ const Navbar = () => {
             <Link to="/admin/register">Admin Register</Link>
           </div>
         )}
-        <img src="/profile.jpg" alt="Profile" />
-      </div>
+      </div> */}
+      <img src={profilePic} alt="Profile" />
     </nav>
   );
 };

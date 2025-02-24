@@ -1,5 +1,5 @@
 .navbar {
-    height: 60px;
+    height: 80px;
     background-color: #113b8a;
     color: white;
     display: flex;
@@ -7,4 +7,11 @@
     padding: 0 20px;
     justify-content: space-between;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+.navbar img {
+    border-radius: 50%;
+    height: 50px;
+    width: 50px;
+    border: 1px solid #00E5FF;
 }

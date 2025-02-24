@@ -1,6 +1,8 @@
 import React from "react";
 import { FaHome, FaMap, FaFlask, FaCog } from "react-icons/fa";
 import { Link } from "react-router-dom";
+import "./Sidebar.css";
+
 const Sidebar = () => {
   return (
     <aside className="sidebar">
